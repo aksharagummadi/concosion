@@ -48,8 +48,8 @@
         transition: background 0.6s ease;
       }
 
-      #scene.street {
-        background: linear-gradient(180deg, #bde8ff 0%, #9fd5ff 55%, #f2e4b7 55%);
+      #scene.cafe {
+        background: linear-gradient(180deg, #f2e9e1 0%, #e8d6c3 55%, #cbb48f 55%);
       }
 
       .ground-line {
@@ -457,7 +457,7 @@
           <div class="stick-leg right"></div>
         </div>
         <div id="kid" class="npc" hidden>
-          <div class="label">Balloon Kid</div>
+          <div class="label">Barista</div>
           <div class="stick-head"></div>
           <div class="stick-body"></div>
           <div class="stick-arm left"></div>
@@ -465,7 +465,7 @@
           <div class="stick-leg left"></div>
           <div class="stick-leg right"></div>
         </div>
-        <div id="scene-message">Street demo unlocked!</div>
+        <div id="scene-message">Cafe scene unlocked!</div>
       </div>
       <div id="hint-panel">
         <h3>💡 Hint</h3>
@@ -585,20 +585,20 @@
         ],
         kid: [
           {
-            speaker: "Balloon Kid",
-            text: "My balloon flew away! Can you stand under the big sign?",
+            speaker: "Barista",
+            text: "Welcome to my cafe! Want to help me catch the espresso order?",
           },
           {
             speaker: "Stickman",
-            text: "I will stand there and catch the red sky circle, maybe.",
+            text: "I can stand by the menu board and catch the coffee clouds.",
           },
           {
-            speaker: "Balloon Kid",
-            text: "It dropped! You're a hero. Here, have a memory of snacks.",
+            speaker: "Barista",
+            text: "Perfect pour! Here, have a memory of warm pastries.",
           },
           {
             speaker: "Stickman",
-            text: "SNACKS! I remember chewing. This is a delicious memory.",
+            text: "PASTRIES! I remember crumbling joy. Delicious memory restored.",
           },
         ],
       };
@@ -687,9 +687,9 @@
         dialogueBox.classList.remove("visible");
         if (state.scene === "hospital" && state.phase === "intro") {
           startKeypadPuzzle();
-        } else if (state.scene === "street" && !state.memories.includes("Remembering snacks")) {
-          addMemory("Remembering snacks");
-          setHint("You recovered a snack memory! Wander around with arrow keys.");
+        } else if (state.scene === "cafe" && !state.memories.includes("Remembering pastries")) {
+          addMemory("Remembering pastries");
+          setHint("You recovered a pastry memory! Wander around with arrow keys.");
           sceneMessage.classList.add("visible");
         }
       }
@@ -725,7 +725,7 @@
           showNextDialogue();
           return;
         }
-        if (state.scene === "street" && isColliding(player, kid)) {
+        if (state.scene === "cafe" && isColliding(player, kid)) {
           openDialogue("kid");
         }
       }
@@ -751,13 +751,13 @@
 
       function handleSceneExit() {
         if (state.scene === "hospital" && state.position.x > scene.clientWidth - 80) {
-          state.scene = "street";
-          scene.classList.add("street");
+          state.scene = "cafe";
+          scene.classList.add("cafe");
           kid.hidden = false;
           nurse.hidden = true;
           state.position.x = 80;
           setPlayerPosition();
-          setHint("Welcome outside! Find the kid and stand close to talk.");
+          setHint("Welcome to the cafe! Find the barista and stand close to talk.");
         }
       }
 
