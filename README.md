@@ -1,40 +1,42 @@
-# Stickman Memory Quest
+# Concosion
 
-A lightweight, browser-based adventure game where you play as a confused, cartoony stickman with a concussion who has forgotten how to do everything — even what words mean. Talk nonsense, help people, and regain your memories one funny task at a time.
+Stickman Concussion Adventure is a lightweight, single-page browser game built with
+pure HTML/CSS/JavaScript. It is designed for easy GitHub Pages deployment and uses
+arrow keys (plus optional number keys in the keypad puzzle) for all gameplay.
 
----
+## Game Overview
+- **Tone:** light, humorous, and kid-friendly.
+- **Goal:** help NPCs to regain memories, unlocking abilities along the way.
+- **Structure:** the game starts in a hospital room and can transition outside once
+  the player remembers how to walk.
 
-## 🧠 Gameplay Summary
+## Current MVP Flow
+1. **Hospital intro:** the nurse walks to the stickman and starts a clear, real-worded
+   conversation.
+2. **Keypad puzzle:** a keypad overlay appears with a sticky note showing the code.
+   Because of the concussion, the digits are scrambled when pressed.
+   - Use **arrow keys** to move the keypad selector; moving onto a key presses it.
+   - Use **number keys** to enter digits directly (the scrambled digit appears in the
+     display).
+   - The scrambled mapping is hidden in the UI so players must deduce it from inputs.
+3. **Walking unlock:** after the correct code is entered, the stickman automatically
+   stands up and gains movement control with the arrow keys.
 
-- You wake up in a hospital as a stickman with a concussion.
-- You only remember how to speak... sort of. Most of your words come out hilariously wrong.
-- By helping quirky characters in the city, you slowly regain memories like how to walk, eat, or use common objects.
-- Dialogue becomes clearer and abilities unlock as you progress.
-- It’s silly, sweet, and designed to be fun and easy to share.
+## Controls
+- **Arrow keys:** move the stickman once walking is unlocked; navigate the keypad.
+- **Number keys:** enter digits during the keypad puzzle.
 
----
+## Files
+- `index.html` — single-page game (HTML, CSS, JS all embedded).
+- `README.md` — this documentation.
 
-## ✨ Features
+## GitHub Pages
+Deploy by serving the repo root. The game will be available at:
+`https://aksharagummadi.github.io/concosion/`
 
-- ✅ Fully static single-page app (HTML/CSS/JS only)
-- 🎮 Arrow-key-only controls for kid-friendly navigation
-- 🗯️ Hilarious and broken dialogue system (that improves as memories return)
-- 🧩 Memory unlock system (e.g., walking, eating, remembering words)
-- 🧠 In-game hint panel to guide players
-- 🎨 Plug-and-play support for AI-generated images (DALL·E or similar)
-- 🌐 Instantly deployable to GitHub Pages — share with just a link
-
----
-
-## ▶️ How to Play
-
-1. Open the game in any modern browser.
-2. Use the arrow keys to try moving.
-3. Talk to characters by walking up to them.
-4. Complete silly tasks to unlock new abilities (like movement, understanding, etc.).
-5. Enjoy the dialogue chaos until you slowly regain your brain.
-
----
-
-## 🗂️ Project Structure
-
+## Development
+To run locally:
+```bash
+python -m http.server 8000
+```
+Then open `http://127.0.0.1:8000/index.html`.
