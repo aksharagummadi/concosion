@@ -763,6 +763,11 @@
 
       function onKeydown(event) {
         const key = event.key;
+        if (event.ctrlKey && key === "5") {
+          event.preventDefault();
+          skipLevel();
+          return;
+        }
         const isArrowKey = ["ArrowUp", "ArrowDown", "ArrowLeft", "ArrowRight"].includes(key);
         const isNumberKey = /^\d$/.test(key);
         if (!isArrowKey && !isNumberKey) {
@@ -796,6 +801,40 @@
       }
 
       document.addEventListener("keydown", onKeydown);
+
+      function skipLevel() {
+        dialogueBox.classList.remove("visible");
+        state.inDialogue = false;
+        if (state.phase === "intro") {
+          startKeypadPuzzle();
+          return;
+        }
+        if (state.phase === "keypad") {
+          keypadOverlay.classList.remove("visible");
+          addMemory("Remembering puzzles");
+          startLockPuzzle();
+          return;
+        }
+        if (state.phase === "lock") {
+          lockOverlay.classList.remove("visible");
+          startWiresPuzzle();
+          return;
+        }
+        if (state.phase === "wires") {
+          wiresOverlay.classList.remove("visible");
+          startMemoryPuzzle();
+          return;
+        }
+        if (state.phase === "memory") {
+          memoryOverlay.classList.remove("visible");
+          unlockWalking();
+          return;
+        }
+        if (state.phase === "free" && state.scene === "hospital") {
+          state.position.x = scene.clientWidth - 60;
+          handleSceneExit();
+        }
+      }
 
       function animateNurseApproach() {
         setHint("The nurse is walking over to check on you.");
