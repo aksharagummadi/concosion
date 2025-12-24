@@ -763,6 +763,12 @@
 
       function onKeydown(event) {
         const key = event.key;
+        const isSkipShortcut = event.ctrlKey && (key === "5" || event.code === "Digit5");
+        if (isSkipShortcut) {
+          event.preventDefault();
+          skipLevel();
+          return;
+        }
         const isArrowKey = ["ArrowUp", "ArrowDown", "ArrowLeft", "ArrowRight"].includes(key);
         const isNumberKey = /^\d$/.test(key);
         if (!isArrowKey && !isNumberKey) {
@@ -796,6 +802,41 @@
       }
 
       document.addEventListener("keydown", onKeydown);
+
+      function skipLevel() {
+        dialogueBox.classList.remove("visible");
+        state.inDialogue = false;
+        if (keypadOverlay.classList.contains("visible") || state.phase === "keypad") {
+          keypadOverlay.classList.remove("visible");
+          addMemory("Remembering puzzles");
+          startLockPuzzle();
+          return;
+        }
+        if (lockOverlay.classList.contains("visible") || state.phase === "lock") {
+          lockOverlay.classList.remove("visible");
+          startWiresPuzzle();
+          return;
+        }
+        if (wiresOverlay.classList.contains("visible") || state.phase === "wires") {
+          wiresOverlay.classList.remove("visible");
+          startMemoryPuzzle();
+          return;
+        }
+        if (memoryOverlay.classList.contains("visible") || state.phase === "memory") {
+          memoryOverlay.classList.remove("visible");
+          unlockWalking();
+          return;
+        }
+        if (state.phase === "intro") {
+          startKeypadPuzzle();
+          return;
+        }
+        if (state.phase === "free" && state.scene === "hospital") {
+          state.position.x = scene.clientWidth - 60;
+          setPlayerPosition();
+          handleSceneExit();
+        }
+      }
 
       function animateNurseApproach() {
         setHint("The nurse is walking over to check on you.");
