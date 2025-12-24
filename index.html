@@ -1,0 +1,514 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Stickman Concussion Adventure</title>
+    <style>
+      :root {
+        --sky: #bde8ff;
+        --floor: #d8f5c1;
+        --hospital: #f5f0ff;
+        --panel: rgba(255, 255, 255, 0.85);
+        --accent: #ff7a7a;
+        --ink: #2c2c2c;
+      }
+
+      * {
+        box-sizing: border-box;
+      }
+
+      body {
+        margin: 0;
+        font-family: "Comic Sans MS", "Trebuchet MS", system-ui, sans-serif;
+        background: linear-gradient(180deg, var(--sky), #ffffff);
+        color: var(--ink);
+        display: flex;
+        justify-content: center;
+        align-items: center;
+        min-height: 100vh;
+      }
+
+      #game-wrapper {
+        width: 900px;
+        max-width: 96vw;
+        aspect-ratio: 16 / 9;
+        background: var(--hospital);
+        border: 5px solid var(--ink);
+        border-radius: 18px;
+        position: relative;
+        overflow: hidden;
+        box-shadow: 0 12px 30px rgba(0, 0, 0, 0.15);
+      }
+
+      #scene {
+        position: absolute;
+        inset: 0;
+        background: linear-gradient(180deg, #f6fbff 0%, #fff5f5 55%, var(--floor) 55%);
+        transition: background 0.6s ease;
+      }
+
+      #scene.street {
+        background: linear-gradient(180deg, #bde8ff 0%, #9fd5ff 55%, #f2e4b7 55%);
+      }
+
+      .ground-line {
+        position: absolute;
+        left: 0;
+        right: 0;
+        height: 6px;
+        background: #86c27c;
+        top: 55%;
+      }
+
+      #player,
+      .npc {
+        position: absolute;
+        width: 48px;
+        height: 96px;
+      }
+
+      .stick-body {
+        position: absolute;
+        left: 50%;
+        top: 18px;
+        width: 6px;
+        height: 60px;
+        background: var(--ink);
+        transform: translateX(-50%);
+      }
+
+      .stick-head {
+        position: absolute;
+        top: 0;
+        left: 50%;
+        width: 30px;
+        height: 30px;
+        border: 4px solid var(--ink);
+        border-radius: 50%;
+        transform: translateX(-50%);
+        background: #fff;
+      }
+
+      .stick-arm {
+        position: absolute;
+        width: 32px;
+        height: 6px;
+        background: var(--ink);
+        top: 40px;
+      }
+
+      .stick-arm.left {
+        left: 4px;
+        transform: rotate(-20deg);
+        transform-origin: left center;
+      }
+
+      .stick-arm.right {
+        right: 4px;
+        transform: rotate(20deg);
+        transform-origin: right center;
+      }
+
+      .stick-leg {
+        position: absolute;
+        width: 6px;
+        height: 36px;
+        background: var(--ink);
+        bottom: 0;
+      }
+
+      .stick-leg.left {
+        left: 16px;
+        transform: rotate(8deg);
+      }
+
+      .stick-leg.right {
+        right: 16px;
+        transform: rotate(-8deg);
+      }
+
+      #player.bedridden {
+        transform: rotate(90deg);
+      }
+
+      #player .speech {
+        position: absolute;
+        top: -22px;
+        left: 50%;
+        transform: translateX(-50%);
+        font-size: 12px;
+        background: #fff;
+        padding: 4px 6px;
+        border-radius: 8px;
+        border: 2px solid var(--ink);
+        display: none;
+      }
+
+      #player.talking .speech {
+        display: block;
+      }
+
+      .npc {
+        filter: drop-shadow(0 2px 2px rgba(0, 0, 0, 0.2));
+      }
+
+      .npc .label {
+        position: absolute;
+        top: -22px;
+        left: 50%;
+        transform: translateX(-50%);
+        background: #fff;
+        border: 2px solid var(--ink);
+        padding: 2px 6px;
+        border-radius: 8px;
+        font-size: 12px;
+      }
+
+      #hint-panel {
+        position: absolute;
+        top: 18px;
+        left: 18px;
+        width: 260px;
+        background: var(--panel);
+        border: 3px solid var(--ink);
+        border-radius: 14px;
+        padding: 12px 14px;
+        font-size: 14px;
+      }
+
+      #hint-panel h3 {
+        margin: 0 0 6px;
+        font-size: 16px;
+      }
+
+      #dialogue {
+        position: absolute;
+        left: 50%;
+        bottom: 18px;
+        transform: translateX(-50%);
+        width: min(640px, 92%);
+        background: rgba(255, 255, 255, 0.95);
+        border: 4px solid var(--ink);
+        border-radius: 16px;
+        padding: 16px;
+        text-align: center;
+        display: none;
+      }
+
+      #dialogue.visible {
+        display: block;
+      }
+
+      #dialogue .speaker {
+        font-weight: 700;
+        margin-bottom: 6px;
+      }
+
+      #memory-panel {
+        position: absolute;
+        top: 18px;
+        right: 18px;
+        width: 200px;
+        background: var(--panel);
+        border: 3px solid var(--ink);
+        border-radius: 14px;
+        padding: 10px 12px;
+        font-size: 13px;
+      }
+
+      #memory-panel ul {
+        padding-left: 18px;
+        margin: 6px 0 0;
+      }
+
+      #scene-message {
+        position: absolute;
+        top: 60%;
+        right: 40px;
+        background: #fff;
+        border: 3px dashed var(--accent);
+        padding: 8px 12px;
+        border-radius: 12px;
+        font-size: 14px;
+        display: none;
+      }
+
+      #scene-message.visible {
+        display: block;
+      }
+
+      @media (max-width: 640px) {
+        #hint-panel,
+        #memory-panel {
+          width: 180px;
+          font-size: 12px;
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <div id="game-wrapper">
+      <div id="scene">
+        <div class="ground-line"></div>
+        <div id="player" class="bedridden">
+          <div class="speech">Blorp?</div>
+          <div class="stick-head"></div>
+          <div class="stick-body"></div>
+          <div class="stick-arm left"></div>
+          <div class="stick-arm right"></div>
+          <div class="stick-leg left"></div>
+          <div class="stick-leg right"></div>
+        </div>
+        <div id="nurse" class="npc">
+          <div class="label">Nurse?</div>
+          <div class="stick-head"></div>
+          <div class="stick-body"></div>
+          <div class="stick-arm left"></div>
+          <div class="stick-arm right"></div>
+          <div class="stick-leg left"></div>
+          <div class="stick-leg right"></div>
+        </div>
+        <div id="kid" class="npc" hidden>
+          <div class="label">Balloon Kid</div>
+          <div class="stick-head"></div>
+          <div class="stick-body"></div>
+          <div class="stick-arm left"></div>
+          <div class="stick-arm right"></div>
+          <div class="stick-leg left"></div>
+          <div class="stick-leg right"></div>
+        </div>
+        <div id="scene-message">Street demo unlocked!</div>
+      </div>
+      <div id="hint-panel">
+        <h3>💡 Hint</h3>
+        <div id="hint-text"></div>
+      </div>
+      <div id="memory-panel">
+        <strong>Recovered Memories</strong>
+        <ul id="memory-list"></ul>
+      </div>
+      <div id="dialogue">
+        <div class="speaker" id="dialogue-speaker"></div>
+        <div id="dialogue-text"></div>
+      </div>
+    </div>
+
+    <script>
+      const player = document.getElementById("player");
+      const nurse = document.getElementById("nurse");
+      const kid = document.getElementById("kid");
+      const scene = document.getElementById("scene");
+      const hintText = document.getElementById("hint-text");
+      const dialogueBox = document.getElementById("dialogue");
+      const dialogueSpeaker = document.getElementById("dialogue-speaker");
+      const dialogueText = document.getElementById("dialogue-text");
+      const memoryList = document.getElementById("memory-list");
+      const sceneMessage = document.getElementById("scene-message");
+
+      const state = {
+        canWalk: false,
+        inDialogue: false,
+        scene: "hospital",
+        memories: [],
+        position: { x: 120, y: 320 },
+      };
+
+      const dialogueScripts = {
+        nurse: [
+          {
+            speaker: "Stickman",
+            text: "Hullo, purse lady! My brain is a potato pancake.",
+          },
+          {
+            speaker: "Nurse",
+            text: "It's nurse, not purse. You have a concussion, buddy.",
+          },
+          {
+            speaker: "Stickman",
+            text: "Ohhh. Nurse rhymes with... blurst? Wait, I remember legs!",
+          },
+          {
+            speaker: "Nurse",
+            text: "Great! You remembered how to walk. Try the arrow keys.",
+          },
+        ],
+        kid: [
+          {
+            speaker: "Balloon Kid",
+            text: "My balloon flew away! Can you stand under the big sign?",
+          },
+          {
+            speaker: "Stickman",
+            text: "I will stand there and catch the red sky circle, maybe.",
+          },
+          {
+            speaker: "Balloon Kid",
+            text: "It dropped! You're a hero. Here, have a memory of snacks.",
+          },
+          {
+            speaker: "Stickman",
+            text: "SNACKS! I remember chewing. This is a delicious memory.",
+          },
+        ],
+      };
+
+      let dialogueQueue = [];
+
+      function updateMemoryList() {
+        memoryList.innerHTML = "";
+        if (state.memories.length === 0) {
+          const li = document.createElement("li");
+          li.textContent = "None yet!";
+          memoryList.appendChild(li);
+          return;
+        }
+        state.memories.forEach((memory) => {
+          const li = document.createElement("li");
+          li.textContent = memory;
+          memoryList.appendChild(li);
+        });
+      }
+
+      function setHint(text) {
+        hintText.textContent = text;
+      }
+
+      function setPlayerPosition() {
+        player.style.left = `${state.position.x}px`;
+        player.style.top = `${state.position.y}px`;
+      }
+
+      function placeCharacters() {
+        setPlayerPosition();
+        nurse.style.left = "220px";
+        nurse.style.top = "260px";
+        kid.style.left = "560px";
+        kid.style.top = "260px";
+      }
+
+      function openDialogue(scriptKey) {
+        dialogueQueue = [...dialogueScripts[scriptKey]];
+        state.inDialogue = true;
+        dialogueBox.classList.add("visible");
+        showNextDialogue();
+      }
+
+      function showNextDialogue() {
+        if (dialogueQueue.length === 0) {
+          closeDialogue();
+          return;
+        }
+        const line = dialogueQueue.shift();
+        dialogueSpeaker.textContent = line.speaker;
+        dialogueText.textContent = line.text;
+      }
+
+      function closeDialogue() {
+        state.inDialogue = false;
+        dialogueBox.classList.remove("visible");
+        if (!state.canWalk) {
+          unlockWalking();
+        } else if (state.scene === "street" && !state.memories.includes("Remembering snacks")) {
+          addMemory("Remembering snacks");
+          setHint("You recovered a snack memory! Wander around with arrow keys.");
+          sceneMessage.classList.add("visible");
+        }
+      }
+
+      function unlockWalking() {
+        state.canWalk = true;
+        addMemory("Remembering walking");
+        player.classList.remove("bedridden");
+        setHint("Use the arrow keys to walk around. Head right to exit!");
+      }
+
+      function addMemory(memory) {
+        if (!state.memories.includes(memory)) {
+          state.memories.push(memory);
+          updateMemoryList();
+        }
+      }
+
+      function isColliding(a, b) {
+        const aRect = a.getBoundingClientRect();
+        const bRect = b.getBoundingClientRect();
+        return !(
+          aRect.right < bRect.left ||
+          aRect.left > bRect.right ||
+          aRect.bottom < bRect.top ||
+          aRect.top > bRect.bottom
+        );
+      }
+
+      function handleInteraction() {
+        if (state.inDialogue) {
+          showNextDialogue();
+          return;
+        }
+        if (state.scene === "hospital" && isColliding(player, nurse)) {
+          openDialogue("nurse");
+          return;
+        }
+        if (state.scene === "street" && isColliding(player, kid)) {
+          openDialogue("kid");
+        }
+      }
+
+      function movePlayer(dx, dy) {
+        if (!state.canWalk) {
+          handleInteraction();
+          player.classList.add("talking");
+          setTimeout(() => player.classList.remove("talking"), 400);
+          return;
+        }
+        if (state.inDialogue) {
+          showNextDialogue();
+          return;
+        }
+        const maxX = scene.clientWidth - 60;
+        const maxY = scene.clientHeight - 120;
+        state.position.x = Math.max(20, Math.min(maxX, state.position.x + dx));
+        state.position.y = Math.max(200, Math.min(maxY, state.position.y + dy));
+        setPlayerPosition();
+        handleSceneExit();
+        handleInteraction();
+      }
+
+      function handleSceneExit() {
+        if (state.scene === "hospital" && state.position.x > scene.clientWidth - 80) {
+          state.scene = "street";
+          scene.classList.add("street");
+          kid.hidden = false;
+          nurse.hidden = true;
+          state.position.x = 80;
+          setPlayerPosition();
+          setHint("Welcome outside! Find the kid and stand close to talk.");
+        }
+      }
+
+      function onKeydown(event) {
+        const key = event.key;
+        if (!["ArrowUp", "ArrowDown", "ArrowLeft", "ArrowRight"].includes(key)) {
+          return;
+        }
+        event.preventDefault();
+        const step = 16;
+        if (key === "ArrowUp") movePlayer(0, -step);
+        if (key === "ArrowDown") movePlayer(0, step);
+        if (key === "ArrowLeft") movePlayer(-step, 0);
+        if (key === "ArrowRight") movePlayer(step, 0);
+      }
+
+      document.addEventListener("keydown", onKeydown);
+
+      function init() {
+        placeCharacters();
+        updateMemoryList();
+        setHint("You wake up in a hospital. Press an arrow key to call the nurse.");
+      }
+
+      init();
+    </script>
+  </body>
+</html>
