@@ -205,6 +205,78 @@
         margin-bottom: 6px;
       }
 
+      #keypad-overlay {
+        position: absolute;
+        inset: 0;
+        background: rgba(0, 0, 0, 0.35);
+        display: none;
+        align-items: center;
+        justify-content: center;
+        padding: 16px;
+      }
+
+      #keypad-overlay.visible {
+        display: flex;
+      }
+
+      #keypad {
+        background: #fff;
+        border: 4px solid var(--ink);
+        border-radius: 18px;
+        padding: 16px 20px;
+        width: min(360px, 90%);
+        text-align: center;
+      }
+
+      #keypad h4 {
+        margin: 0 0 8px;
+        font-size: 18px;
+      }
+
+      #sticky-note {
+        background: #fff9a9;
+        border: 2px solid #d4c863;
+        border-radius: 12px;
+        padding: 6px 10px;
+        font-size: 13px;
+        margin: 8px auto;
+        width: fit-content;
+      }
+
+      #keypad-display {
+        font-size: 22px;
+        letter-spacing: 4px;
+        padding: 8px 0;
+        border: 2px dashed var(--ink);
+        border-radius: 10px;
+        margin-bottom: 10px;
+      }
+
+      #keypad-grid {
+        display: grid;
+        grid-template-columns: repeat(3, 1fr);
+        gap: 8px;
+      }
+
+      .keypad-key {
+        background: #f2f2f2;
+        border: 2px solid var(--ink);
+        border-radius: 10px;
+        padding: 10px 0;
+        font-size: 18px;
+        font-weight: 700;
+      }
+
+      .keypad-key.selected {
+        background: var(--accent);
+        color: #fff;
+      }
+
+      #keypad-hint {
+        margin-top: 10px;
+        font-size: 12px;
+      }
+
       #memory-panel {
         position: absolute;
         top: 18px;
@@ -252,7 +324,7 @@
       <div id="scene">
         <div class="ground-line"></div>
         <div id="player" class="bedridden">
-          <div class="speech">Blorp?</div>
+          <div class="speech">Hello?</div>
           <div class="stick-head"></div>
           <div class="stick-body"></div>
           <div class="stick-arm left"></div>
@@ -292,6 +364,20 @@
         <div class="speaker" id="dialogue-speaker"></div>
         <div id="dialogue-text"></div>
       </div>
+      <div id="keypad-overlay">
+        <div id="keypad">
+          <h4>Hospital Door Keypad</h4>
+          <div id="sticky-note">Sticky note: Code 428</div>
+          <div id="keypad-display">---</div>
+          <div id="keypad-grid"></div>
+          <div id="keypad-hint">
+            Use arrow keys to move. Each move onto a key presses it.
+          </div>
+          <div id="keypad-hint">
+            Scrambled keys: 1→3, 2→8, 3→1, 4→6, 5→0, 6→2, 7→9, 8→4, 9→7, 0→5.
+          </div>
+        </div>
+      </div>
     </div>
 
     <script>
@@ -305,11 +391,15 @@
       const dialogueText = document.getElementById("dialogue-text");
       const memoryList = document.getElementById("memory-list");
       const sceneMessage = document.getElementById("scene-message");
+      const keypadOverlay = document.getElementById("keypad-overlay");
+      const keypadGrid = document.getElementById("keypad-grid");
+      const keypadDisplay = document.getElementById("keypad-display");
 
       const state = {
         canWalk: false,
         inDialogue: false,
         scene: "hospital",
+        phase: "intro",
         memories: [],
         position: { x: 120, y: 320 },
       };
@@ -318,19 +408,23 @@
         nurse: [
           {
             speaker: "Stickman",
-            text: "Hullo, purse lady! My brain is a potato pancake.",
+            text: "Goodbye. Tomato salad solves all problems. Why I have no tomato salad?",
           },
           {
             speaker: "Nurse",
-            text: "It's nurse, not purse. You have a concussion, buddy.",
+            text: "I'm your nurse. You have a concussion, so we will go slow.",
           },
           {
             speaker: "Stickman",
-            text: "Ohhh. Nurse rhymes with... blurst? Wait, I remember legs!",
+            text: "Fish tanks are very tasty, especially ones with french fries",
           },
           {
             speaker: "Nurse",
-            text: "Great! You remembered how to walk. Try the arrow keys.",
+            text: "Solve this keypad puzzle. The code is on the sticky note, but your fingers are scrambled.",
+          },
+          {
+            speaker: "Nurse",
+            text: "Each number you press becomes a different number. Figure out the right buttons.",
           },
         ],
         kid: [
@@ -354,6 +448,25 @@
       };
 
       let dialogueQueue = [];
+      const keypadLayout = ["1", "2", "3", "4", "5", "6", "7", "8", "9", "clear", "0", "enter"];
+      const scrambledMap = {
+        0: "5",
+        1: "3",
+        2: "8",
+        3: "1",
+        4: "6",
+        5: "0",
+        6: "2",
+        7: "9",
+        8: "4",
+        9: "7",
+      };
+      const targetCode = "428";
+      let keypadSelection = 0;
+      let keypadInput = "";
+      let nurseApproachTimer;
+      let nurseArrived = false;
+      let introDialogueStarted = false;
 
       function updateMemoryList() {
         memoryList.innerHTML = "";
@@ -381,7 +494,7 @@
 
       function placeCharacters() {
         setPlayerPosition();
-        nurse.style.left = "220px";
+        nurse.style.left = "720px";
         nurse.style.top = "260px";
         kid.style.left = "560px";
         kid.style.top = "260px";
@@ -407,8 +520,8 @@
       function closeDialogue() {
         state.inDialogue = false;
         dialogueBox.classList.remove("visible");
-        if (!state.canWalk) {
-          unlockWalking();
+        if (state.scene === "hospital" && state.phase === "intro") {
+          startKeypadPuzzle();
         } else if (state.scene === "street" && !state.memories.includes("Remembering snacks")) {
           addMemory("Remembering snacks");
           setHint("You recovered a snack memory! Wander around with arrow keys.");
@@ -418,9 +531,10 @@
 
       function unlockWalking() {
         state.canWalk = true;
+        state.phase = "free";
         addMemory("Remembering walking");
         player.classList.remove("bedridden");
-        setHint("Use the arrow keys to walk around. Head right to exit!");
+        setHint("You remembered how to walk! Use the arrow keys to move.");
       }
 
       function addMemory(memory) {
@@ -493,6 +607,18 @@
           return;
         }
         event.preventDefault();
+        if (state.inDialogue) {
+          showNextDialogue();
+          return;
+        }
+        if (state.phase === "intro" && !state.inDialogue) {
+          startIntroDialogue(true);
+          return;
+        }
+        if (state.phase === "puzzle") {
+          handleKeypadInput(key);
+          return;
+        }
         const step = 16;
         if (key === "ArrowUp") movePlayer(0, -step);
         if (key === "ArrowDown") movePlayer(0, step);
@@ -502,10 +628,125 @@
 
       document.addEventListener("keydown", onKeydown);
 
+      function animateNurseApproach() {
+        setHint("The nurse is walking over to check on you.");
+        nurseArrived = false;
+        nurseApproachTimer = setInterval(() => {
+          const nurseX = Number.parseFloat(nurse.style.left) || 720;
+          const targetX = state.position.x + 60;
+          if (nurseX <= targetX) {
+            clearInterval(nurseApproachTimer);
+            nurseArrived = true;
+            startIntroDialogue();
+            return;
+          }
+          nurse.style.left = `${nurseX - 6}px`;
+        }, 60);
+      }
+
+      function startIntroDialogue(forceSnap = false) {
+        if (introDialogueStarted || state.inDialogue || state.phase !== "intro") {
+          return;
+        }
+        introDialogueStarted = true;
+        if (nurseApproachTimer) {
+          clearInterval(nurseApproachTimer);
+        }
+        if (forceSnap || !nurseArrived) {
+          nurse.style.left = `${state.position.x + 60}px`;
+        }
+        openDialogue("nurse");
+      }
+
+      function buildKeypad() {
+        keypadGrid.innerHTML = "";
+        keypadLayout.forEach((key, index) => {
+          const button = document.createElement("div");
+          button.className = "keypad-key";
+          button.dataset.index = index;
+          button.textContent = key === "clear" ? "CLR" : key === "enter" ? "OK" : key;
+          keypadGrid.appendChild(button);
+        });
+        updateKeypadSelection();
+      }
+
+      function updateKeypadSelection() {
+        keypadGrid.querySelectorAll(".keypad-key").forEach((key) => {
+          key.classList.remove("selected");
+        });
+        const selected = keypadGrid.querySelector(`[data-index="${keypadSelection}"]`);
+        if (selected) selected.classList.add("selected");
+      }
+
+      function handleKeypadInput(key) {
+        const columns = 3;
+        const rows = Math.ceil(keypadLayout.length / columns);
+        const row = Math.floor(keypadSelection / columns);
+        const col = keypadSelection % columns;
+        let nextRow = row;
+        let nextCol = col;
+        if (key === "ArrowUp") nextRow = Math.max(0, row - 1);
+        if (key === "ArrowDown") nextRow = Math.min(rows - 1, row + 1);
+        if (key === "ArrowLeft") nextCol = Math.max(0, col - 1);
+        if (key === "ArrowRight") nextCol = Math.min(columns - 1, col + 1);
+        const nextIndex = nextRow * columns + nextCol;
+        if (nextIndex < keypadLayout.length) {
+          keypadSelection = nextIndex;
+        }
+        updateKeypadSelection();
+        pressKeypadKey(keypadLayout[keypadSelection]);
+      }
+
+      function pressKeypadKey(key) {
+        if (key === "clear") {
+          keypadInput = "";
+          updateKeypadDisplay();
+          return;
+        }
+        if (key === "enter") {
+          if (keypadInput === targetCode) {
+            keypadOverlay.classList.remove("visible");
+            unlockWalking();
+          } else {
+            keypadInput = "";
+            updateKeypadDisplay("Try again");
+          }
+          return;
+        }
+        if (keypadInput.length >= targetCode.length) {
+          return;
+        }
+        const mapped = scrambledMap[key];
+        keypadInput += mapped;
+        updateKeypadDisplay();
+      }
+
+      function updateKeypadDisplay(message) {
+        if (message) {
+          keypadDisplay.textContent = message;
+          return;
+        }
+        const displayText = keypadInput.padEnd(targetCode.length, "-");
+        keypadDisplay.textContent = displayText.split("").join(" ");
+      }
+
+      function startKeypadPuzzle() {
+        state.phase = "puzzle";
+        keypadOverlay.classList.add("visible");
+        keypadInput = "";
+        keypadSelection = 0;
+        updateKeypadDisplay();
+        updateKeypadSelection();
+        setHint("Solve the keypad puzzle using only the arrow keys.");
+      }
+
       function init() {
         placeCharacters();
         updateMemoryList();
-        setHint("You wake up in a hospital. Press an arrow key to call the nurse.");
+        buildKeypad();
+        setHint("You wake up in a hospital bed. The nurse is coming to talk.");
+        animateNurseApproach();
+        setTimeout(() => startIntroDialogue(), 2400);
       }
 
       init();
