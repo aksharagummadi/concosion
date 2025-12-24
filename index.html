@@ -408,7 +408,7 @@
         nurse: [
           {
             speaker: "Stickman",
-            text: "Hello. I remember my name, but everything feels foggy.",
+            text: "Goodbye. Tomato salad solves all problems. Why I have no tomato salad?",
           },
           {
             speaker: "Nurse",
@@ -416,7 +416,7 @@
           },
           {
             speaker: "Stickman",
-            text: "Thank you. I want to help. What should I do?",
+            text: "Fish tanks are very tasty, especially ones with french fries",
           },
           {
             speaker: "Nurse",
@@ -560,6 +560,10 @@
           showNextDialogue();
           return;
         }
+        if (state.scene === "hospital" && isColliding(player, nurse)) {
+          openDialogue("nurse");
+          return;
+        }
         if (state.scene === "street" && isColliding(player, kid)) {
           openDialogue("kid");
         }
@@ -567,6 +571,7 @@
 
       function movePlayer(dx, dy) {
         if (!state.canWalk) {
+          handleInteraction();
           player.classList.add("talking");
           setTimeout(() => player.classList.remove("talking"), 400);
           return;
