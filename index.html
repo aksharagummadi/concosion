@@ -52,6 +52,10 @@
         background: linear-gradient(180deg, #bde8ff 0%, #9fd5ff 55%, #f2e4b7 55%);
       }
 
+      #scene.cafe {
+        background: linear-gradient(180deg, #fff2d6 0%, #ffd8b2 55%, #f2c6a0 55%);
+      }
+
       .ground-line {
         position: absolute;
         left: 0;
@@ -285,6 +289,13 @@
         font-size: 12px;
       }
 
+      .lock-layer.selected {
+        outline: 2px dashed var(--accent);
+        outline-offset: 4px;
+        border-radius: 12px;
+        padding: 2px 4px;
+      }
+
       .lock-layer span {
         width: 18px;
         height: 18px;
@@ -421,6 +432,128 @@
         display: block;
       }
 
+      #order-overlay {
+        position: absolute;
+        inset: 0;
+        background: rgba(0, 0, 0, 0.35);
+        display: none;
+        align-items: center;
+        justify-content: center;
+        padding: 16px;
+        z-index: 2;
+      }
+
+      #order-overlay.visible {
+        display: flex;
+      }
+
+      #order-panel {
+        background: #fff;
+        border: 4px solid var(--ink);
+        border-radius: 18px;
+        padding: 16px 20px;
+        width: min(520px, 94%);
+        text-align: center;
+      }
+
+      #order-panel h4 {
+        margin: 0 0 8px;
+        font-size: 18px;
+      }
+
+      #customer-bubble {
+        background: #fff;
+        border: 3px solid var(--ink);
+        border-radius: 12px;
+        padding: 8px 12px;
+        display: inline-block;
+        cursor: pointer;
+        margin-bottom: 10px;
+      }
+
+      #recipe-popup {
+        background: #fef6d0;
+        border: 2px dashed var(--ink);
+        border-radius: 12px;
+        padding: 8px 12px;
+        font-size: 13px;
+        margin: 8px auto 12px;
+        width: fit-content;
+        display: none;
+      }
+
+      #recipe-popup.visible {
+        display: block;
+      }
+
+      .order-stats {
+        display: flex;
+        justify-content: space-between;
+        font-size: 13px;
+        margin-bottom: 10px;
+      }
+
+      #ingredient-bar {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 8px;
+        justify-content: center;
+        margin-bottom: 12px;
+      }
+
+      .ingredient {
+        padding: 6px 10px;
+        border: 2px solid var(--ink);
+        border-radius: 10px;
+        background: #f2f2f2;
+        cursor: grab;
+        font-size: 12px;
+      }
+
+      #cup-drop {
+        width: 180px;
+        height: 200px;
+        margin: 0 auto 10px;
+        border: 3px dashed var(--ink);
+        border-radius: 0 0 20px 20px;
+        background: #fff;
+        position: relative;
+        display: flex;
+        flex-direction: column-reverse;
+        align-items: center;
+        justify-content: flex-start;
+        padding: 10px 6px;
+        gap: 4px;
+        font-size: 11px;
+      }
+
+      #cup-drop.active {
+        background: #f1ffef;
+      }
+
+      .cup-layer {
+        width: 90%;
+        border-radius: 6px;
+        padding: 2px 4px;
+        background: #ffe4ea;
+        border: 1px solid var(--ink);
+      }
+
+      #order-actions {
+        display: flex;
+        justify-content: center;
+        gap: 10px;
+      }
+
+      .order-button {
+        border: 2px solid var(--ink);
+        border-radius: 10px;
+        padding: 6px 12px;
+        background: #f2f2f2;
+        font-weight: 700;
+        cursor: pointer;
+      }
+
       @media (max-width: 640px) {
         #hint-panel,
         #memory-panel {
@@ -458,6 +591,15 @@
         </div>
         <div id="kid" class="npc" hidden>
           <div class="label">Balloon Kid</div>
+          <div class="stick-head"></div>
+          <div class="stick-body"></div>
+          <div class="stick-arm left"></div>
+          <div class="stick-arm right"></div>
+          <div class="stick-leg left"></div>
+          <div class="stick-leg right"></div>
+        </div>
+        <div id="barista" class="npc" hidden>
+          <div class="label">Barista</div>
           <div class="stick-head"></div>
           <div class="stick-body"></div>
           <div class="stick-arm left"></div>
@@ -521,12 +663,30 @@
           <div id="memory-message"></div>
         </div>
       </div>
+      <div id="order-overlay">
+        <div id="order-panel">
+          <h4>Bubble Tea Rush</h4>
+          <div id="customer-bubble">Customer: “Can I get a drink?”</div>
+          <div id="recipe-popup"></div>
+          <div class="order-stats">
+            <span id="order-count">Served: 0 / 10</span>
+            <span id="order-status"></span>
+          </div>
+          <div id="ingredient-bar"></div>
+          <div id="cup-drop">Drop ingredients here</div>
+          <div id="order-actions">
+            <button class="order-button" id="serve-order">Serve</button>
+            <button class="order-button" id="reset-order">Reset</button>
+          </div>
+        </div>
+      </div>
     </div>
 
     <script>
       const player = document.getElementById("player");
       const nurse = document.getElementById("nurse");
       const kid = document.getElementById("kid");
+      const barista = document.getElementById("barista");
       const scene = document.getElementById("scene");
       const hintText = document.getElementById("hint-text");
       const dialogueBox = document.getElementById("dialogue");
@@ -550,6 +710,15 @@
       const memoryGrid = document.getElementById("memory-grid");
       const memoryScore = document.getElementById("memory-score");
       const memoryMessage = document.getElementById("memory-message");
+      const orderOverlay = document.getElementById("order-overlay");
+      const customerBubble = document.getElementById("customer-bubble");
+      const recipePopup = document.getElementById("recipe-popup");
+      const orderCount = document.getElementById("order-count");
+      const orderStatus = document.getElementById("order-status");
+      const ingredientBar = document.getElementById("ingredient-bar");
+      const cupDrop = document.getElementById("cup-drop");
+      const serveOrderButton = document.getElementById("serve-order");
+      const resetOrderButton = document.getElementById("reset-order");
 
       const state = {
         canWalk: false,
@@ -601,6 +770,20 @@
             text: "SNACKS! I remember chewing. This is a delicious memory.",
           },
         ],
+        barista: [
+          {
+            speaker: "Barista",
+            text: "Welcome! We need help serving customers. Can you take over the drink station?",
+          },
+          {
+            speaker: "Stickman",
+            text: "[jabbing the boba with fingers] Why bubbles no pop? Is it because tomato salad no croutons",
+          },
+          {
+            speaker: "Barista",
+            text: " These bubbles don't pop, anyways click the customer speech bubble to read the recipe, then drag ingredients into the cup.",
+          },
+        ],
       };
 
       let dialogueQueue = [];
@@ -625,13 +808,39 @@
       let introDialogueStarted = false;
       const lockTargets = [2, 2, 2];
       let lockLayers = [0, 4, 1];
+      let lockSelectedLayer = 0;
       const wireColors = ["red", "blue", "green", "yellow"];
       let wireSelected = null;
       const wireConnections = new Set();
+      let wireLeftOrder = [];
+      let wireRightOrder = [];
       const memoryColors = ["red", "blue", "green", "yellow"];
       let memorySequence = [];
       let memoryInputIndex = 0;
       let memoryLocked = false;
+      const ingredients = [
+        "Black Tea",
+        "Green Tea",
+        "Milk",
+        "Honey",
+        "Taro",
+        "Strawberry",
+        "Tapioca",
+        "Popping Boba",
+        "Ice",
+      ];
+      const orders = [
+        { name: "Classic Milk Tea", recipe: ["Black Tea", "Milk", "Tapioca", "Ice"] },
+        { name: "Honey Green Tea", recipe: ["Green Tea", "Honey", "Ice"] },
+        { name: "Strawberry Pop", recipe: ["Strawberry", "Milk", "Popping Boba", "Ice"] },
+        { name: "Taro Dream", recipe: ["Taro", "Milk", "Tapioca", "Ice"] },
+        { name: "Iced Black Tea", recipe: ["Black Tea", "Ice"] },
+        { name: "Green Tea Boba", recipe: ["Green Tea", "Tapioca", "Ice"] },
+      ];
+      let currentOrder = null;
+      let builtIngredients = [];
+      let ordersServed = 0;
+      let cafeStarted = false;
 
       function updateMemoryList() {
         memoryList.innerHTML = "";
@@ -663,6 +872,8 @@
         nurse.style.top = "260px";
         kid.style.left = "560px";
         kid.style.top = "260px";
+        barista.style.left = "700px";
+        barista.style.top = "260px";
       }
 
       function openDialogue(scriptKey) {
@@ -691,6 +902,8 @@
           addMemory("Remembering snacks");
           setHint("You recovered a snack memory! Wander around with arrow keys.");
           sceneMessage.classList.add("visible");
+        } else if (state.scene === "cafe" && !cafeStarted) {
+          startCafeRush();
         }
       }
 
@@ -728,6 +941,9 @@
         if (state.scene === "street" && isColliding(player, kid)) {
           openDialogue("kid");
         }
+        if (state.scene === "cafe" && isColliding(player, barista)) {
+          openDialogue("barista");
+        }
       }
 
       function movePlayer(dx, dy) {
@@ -753,11 +969,24 @@
         if (state.scene === "hospital" && state.position.x > scene.clientWidth - 80) {
           state.scene = "street";
           scene.classList.add("street");
+          scene.classList.remove("cafe");
           kid.hidden = false;
           nurse.hidden = true;
+          barista.hidden = true;
           state.position.x = 80;
           setPlayerPosition();
           setHint("Welcome outside! Find the kid and stand close to talk.");
+          return;
+        }
+        if (state.scene === "street" && state.position.x > scene.clientWidth - 80) {
+          state.scene = "cafe";
+          scene.classList.add("cafe");
+          scene.classList.remove("street");
+          kid.hidden = true;
+          barista.hidden = false;
+          state.position.x = 80;
+          setPlayerPosition();
+          setHint("You found the cafe! Talk to the barista for a new task.");
         }
       }
 
@@ -783,6 +1012,18 @@
           } else {
             handleKeypadInput(key);
           }
+          return;
+        }
+        if (state.phase === "lock") {
+          handleLockKeyInput(key);
+          return;
+        }
+        if (state.phase === "wires") {
+          handleWireKeyInput(key);
+          return;
+        }
+        if (state.phase === "memory") {
+          handleMemoryKeyInput(key);
           return;
         }
         if (state.phase !== "free") {
@@ -931,6 +1172,9 @@
         lockLayers.forEach((value, index) => {
           const layer = document.createElement("div");
           layer.className = "lock-layer";
+          if (index === lockSelectedLayer) {
+            layer.classList.add("selected");
+          }
           for (let i = 0; i < 6; i += 1) {
             const dot = document.createElement("span");
             if (i === value) dot.classList.add("active");
@@ -962,11 +1206,37 @@
       function startLockPuzzle() {
         state.phase = "lock";
         lockLayers = [0, 4, 1];
+        lockSelectedLayer = 0;
         lockMessage.textContent = "";
         lockOverlay.classList.add("visible");
         buildLockControls();
         renderLockLayers();
-        setHint("Twist the lock layers so the green markers align.");
+        setHint("Twist the lock layers so the green markers align. (Keys 1-3 select a layer.)");
+      }
+
+      function handleLockKeyInput(key) {
+        if (key === "ArrowLeft") {
+          rotateLockLayer(lockSelectedLayer, -1);
+          return;
+        }
+        if (key === "ArrowRight") {
+          rotateLockLayer(lockSelectedLayer, 1);
+          return;
+        }
+        if (key === "ArrowUp") {
+          lockSelectedLayer = (lockSelectedLayer + 2) % 3;
+          renderLockLayers();
+          return;
+        }
+        if (key === "ArrowDown") {
+          lockSelectedLayer = (lockSelectedLayer + 1) % 3;
+          renderLockLayers();
+          return;
+        }
+        if (/^[1-3]$/.test(key)) {
+          lockSelectedLayer = Number.parseInt(key, 10) - 1;
+          renderLockLayers();
+        }
       }
 
       function buildWireBoard() {
@@ -976,24 +1246,27 @@
         wireMessage.textContent = "";
         wireSelected = null;
         wireConnections.clear();
-        const shuffledRight = [...wireColors].sort(() => Math.random() - 0.5);
-        wireColors.forEach((color) => {
+        wireLeftOrder = [...wireColors];
+        wireRightOrder = [...wireColors].sort(() => Math.random() - 0.5);
+        wireLeftOrder.forEach((color, index) => {
           const leftBtn = document.createElement("button");
           leftBtn.className = "wire-terminal";
           leftBtn.style.background = color;
           leftBtn.dataset.color = color;
           leftBtn.dataset.side = "left";
-          leftBtn.textContent = color.toUpperCase();
+          leftBtn.dataset.index = index;
+          leftBtn.textContent = `${index + 1}. ${color.toUpperCase()}`;
           leftBtn.addEventListener("click", () => selectWire(color, "left", leftBtn));
           wireLeft.appendChild(leftBtn);
         });
-        shuffledRight.forEach((color) => {
+        wireRightOrder.forEach((color, index) => {
           const rightBtn = document.createElement("button");
           rightBtn.className = "wire-terminal";
           rightBtn.style.background = color;
           rightBtn.dataset.color = color;
           rightBtn.dataset.side = "right";
-          rightBtn.textContent = color.toUpperCase();
+          rightBtn.dataset.index = index;
+          rightBtn.textContent = `${index + 1}. ${color.toUpperCase()}`;
           rightBtn.addEventListener("click", () => selectWire(color, "right", rightBtn));
           wireRight.appendChild(rightBtn);
         });
@@ -1058,7 +1331,30 @@
         state.phase = "wires";
         wiresOverlay.classList.add("visible");
         buildWireBoard();
-        setHint("Connect matching color wires to restore power.");
+        setHint("Connect matching color wires to restore power. (Keys 1-4 pick left then right.)");
+      }
+
+      function handleWireKeyInput(key) {
+        if (!/^[1-4]$/.test(key)) {
+          if (key === "Escape") {
+            wireSelected = null;
+            wireLeft.querySelectorAll(".wire-terminal").forEach((node) => node.classList.remove("selected"));
+            wireMessage.textContent = "Selection cleared.";
+          }
+          return;
+        }
+        const index = Number.parseInt(key, 10) - 1;
+        if (!wireSelected) {
+          const button = wireLeft.querySelector(`.wire-terminal[data-index="${index}"]`);
+          if (button) {
+            selectWire(wireLeftOrder[index], "left", button);
+          }
+          return;
+        }
+        const button = wireRight.querySelector(`.wire-terminal[data-index="${index}"]`);
+        if (button) {
+          selectWire(wireRightOrder[index], "right", button);
+        }
       }
 
       function buildMemoryButtons() {
@@ -1137,9 +1433,131 @@
         memoryMessage.textContent = "";
         buildMemoryButtons();
         updateMemoryScore();
-        setHint("Repeat the color sequence. Reach a score of 10.");
+        setHint("Repeat the color sequence. Reach a score of 10. (Keys 1-4 press colors.)");
         setTimeout(() => nextMemoryRound(), 600);
       }
+
+      function handleMemoryKeyInput(key) {
+        if (!/^[1-4]$/.test(key)) {
+          return;
+        }
+        const index = Number.parseInt(key, 10) - 1;
+        handleMemoryInput(memoryColors[index]);
+      }
+
+      function buildIngredientBar() {
+        ingredientBar.innerHTML = "";
+        ingredients.forEach((ingredient) => {
+          const item = document.createElement("div");
+          item.className = "ingredient";
+          item.textContent = ingredient;
+          item.draggable = true;
+          item.addEventListener("dragstart", (event) => {
+            event.dataTransfer.setData("text/plain", ingredient);
+          });
+          ingredientBar.appendChild(item);
+        });
+      }
+
+      function updateCupDisplay() {
+        cupDrop.innerHTML = "";
+        if (builtIngredients.length === 0) {
+          cupDrop.textContent = "Drop ingredients here";
+          return;
+        }
+        builtIngredients.forEach((ingredient) => {
+          const layer = document.createElement("div");
+          layer.className = "cup-layer";
+          layer.textContent = ingredient;
+          cupDrop.appendChild(layer);
+        });
+      }
+
+      function startNewOrder() {
+        currentOrder = orders[Math.floor(Math.random() * orders.length)];
+        builtIngredients = [];
+        updateCupDisplay();
+        recipePopup.classList.remove("visible");
+        recipePopup.textContent = "";
+        customerBubble.textContent = `Customer: “${currentOrder.name}, please!”`;
+        orderStatus.textContent = "Waiting on recipe...";
+      }
+
+      function checkOrderMatch() {
+        if (!currentOrder) {
+          return false;
+        }
+        if (builtIngredients.length !== currentOrder.recipe.length) {
+          return false;
+        }
+        return currentOrder.recipe.every((ingredient) => builtIngredients.includes(ingredient));
+      }
+
+      function startCafeRush() {
+        cafeStarted = true;
+        state.phase = "cafe";
+        orderOverlay.classList.add("visible");
+        ordersServed = 0;
+        orderCount.textContent = "Served: 0 / 10";
+        orderStatus.textContent = "";
+        buildIngredientBar();
+        startNewOrder();
+        setHint("Serve 10 customers by making their drinks.");
+      }
+
+      function finishCafeRush() {
+        orderOverlay.classList.remove("visible");
+        addMemory("Remembering eating");
+        setHint("You earned the memory of eating! Keep exploring.");
+        state.phase = "free";
+      }
+
+      customerBubble.addEventListener("click", () => {
+        if (!currentOrder) return;
+        recipePopup.classList.add("visible");
+        recipePopup.innerHTML = `<strong>${currentOrder.name}</strong>: ${currentOrder.recipe.join(", ")}`;
+        orderStatus.textContent = "Recipe revealed!";
+      });
+
+      cupDrop.addEventListener("dragover", (event) => {
+        event.preventDefault();
+        cupDrop.classList.add("active");
+      });
+
+      cupDrop.addEventListener("dragleave", () => {
+        cupDrop.classList.remove("active");
+      });
+
+      cupDrop.addEventListener("drop", (event) => {
+        event.preventDefault();
+        const ingredient = event.dataTransfer.getData("text/plain");
+        if (!ingredient) return;
+        builtIngredients.push(ingredient);
+        cupDrop.classList.remove("active");
+        orderStatus.textContent = `${ingredient} added.`;
+        updateCupDisplay();
+      });
+
+      resetOrderButton.addEventListener("click", () => {
+        builtIngredients = [];
+        orderStatus.textContent = "Cup reset.";
+        updateCupDisplay();
+      });
+
+      serveOrderButton.addEventListener("click", () => {
+        if (checkOrderMatch()) {
+          ordersServed += 1;
+          orderCount.textContent = `Served: ${ordersServed} / 10`;
+          orderStatus.textContent = "Order served!";
+          if (ordersServed >= 10) {
+            finishCafeRush();
+            return;
+          }
+          startNewOrder();
+        } else {
+          orderStatus.textContent = "That drink is not quite right.";
+        }
+      });
 
       function init() {
         placeCharacters();
