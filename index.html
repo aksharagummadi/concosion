@@ -205,7 +205,7 @@
         margin-bottom: 6px;
       }
 
-      #keypad-overlay {
+      .puzzle-overlay {
         position: absolute;
         inset: 0;
         background: rgba(0, 0, 0, 0.35);
@@ -215,11 +215,11 @@
         padding: 16px;
       }
 
-      #keypad-overlay.visible {
+      .puzzle-overlay.visible {
         display: flex;
       }
 
-      #keypad {
+      .puzzle-panel {
         background: #fff;
         border: 4px solid var(--ink);
         border-radius: 18px;
@@ -228,7 +228,7 @@
         text-align: center;
       }
 
-      #keypad h4 {
+      .puzzle-panel h4 {
         margin: 0 0 8px;
         font-size: 18px;
       }
@@ -277,6 +277,124 @@
         font-size: 12px;
       }
 
+      .lock-layer {
+        display: flex;
+        justify-content: center;
+        gap: 6px;
+        margin: 10px 0;
+        font-size: 12px;
+      }
+
+      .lock-layer.selected {
+        outline: 2px dashed var(--accent);
+        outline-offset: 4px;
+        border-radius: 12px;
+        padding: 2px 4px;
+      }
+
+      .lock-layer span {
+        width: 18px;
+        height: 18px;
+        border-radius: 50%;
+        border: 2px solid var(--ink);
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        background: #f5f5f5;
+      }
+
+      .lock-layer span.active {
+        background: var(--accent);
+        color: #fff;
+      }
+
+      .lock-layer span.target {
+        border-color: #1a8f4e;
+        box-shadow: 0 0 0 2px rgba(26, 143, 78, 0.3);
+      }
+
+      .lock-controls {
+        display: grid;
+        grid-template-columns: repeat(3, 1fr);
+        gap: 8px;
+        margin-top: 10px;
+      }
+
+      .lock-button,
+      .wire-terminal,
+      .memory-button {
+        border: 2px solid var(--ink);
+        border-radius: 10px;
+        padding: 8px;
+        font-weight: 700;
+        cursor: pointer;
+        background: #f2f2f2;
+      }
+
+      .lock-button {
+        font-size: 12px;
+      }
+
+      .wire-board {
+        display: grid;
+        grid-template-columns: 1fr auto 1fr;
+        gap: 12px;
+        align-items: center;
+        margin-top: 12px;
+      }
+
+      .wire-column {
+        display: flex;
+        flex-direction: column;
+        gap: 8px;
+      }
+
+      .wire-terminal.connected {
+        background: #c7f5c0;
+      }
+
+      .wire-terminal.selected {
+        outline: 3px solid var(--accent);
+      }
+
+      .wire-links {
+        font-size: 12px;
+        line-height: 1.4;
+      }
+
+      .memory-grid {
+        display: grid;
+        grid-template-columns: repeat(2, 1fr);
+        gap: 10px;
+        margin-top: 12px;
+      }
+
+      .memory-button {
+        height: 70px;
+        font-size: 0;
+      }
+
+      .memory-button.red {
+        background: #ff6b6b;
+      }
+
+      .memory-button.blue {
+        background: #6ba9ff;
+      }
+
+      .memory-button.green {
+        background: #6bff95;
+      }
+
+      .memory-button.yellow {
+        background: #ffe26b;
+      }
+
+      .memory-button.active {
+        box-shadow: 0 0 0 4px rgba(255, 255, 255, 0.8) inset;
+        filter: brightness(1.15);
+      }
+
       #memory-panel {
         position: absolute;
         top: 18px;
@@ -315,6 +433,10 @@
         #memory-panel {
           width: 180px;
           font-size: 12px;
+        }
+
+        .puzzle-panel {
+          width: min(320px, 92%);
         }
       }
     </style>
@@ -364,8 +486,8 @@
         <div class="speaker" id="dialogue-speaker"></div>
         <div id="dialogue-text"></div>
       </div>
-      <div id="keypad-overlay">
-        <div id="keypad">
+      <div id="keypad-overlay" class="puzzle-overlay">
+        <div id="keypad" class="puzzle-panel">
           <h4>Hospital Door Keypad</h4>
           <div id="sticky-note">Sticky note: Code 428</div>
           <div id="keypad-display">---</div>
@@ -374,6 +496,36 @@
             Use arrow keys to move. Each move onto a key presses it.
           </div>
           <div id="keypad-hint">Number keys also work.</div>
+        </div>
+      </div>
+      <div id="lock-overlay" class="puzzle-overlay">
+        <div class="puzzle-panel">
+          <h4>Twist Lock Alignment</h4>
+          <div>Align each ring on the green marker.</div>
+          <div id="lock-layers"></div>
+          <div class="lock-controls" id="lock-controls"></div>
+          <div id="lock-message"></div>
+        </div>
+      </div>
+      <div id="wires-overlay" class="puzzle-overlay">
+        <div class="puzzle-panel">
+          <h4>Wire Connection</h4>
+          <div>Connect matching colors to restore power.</div>
+          <div class="wire-board">
+            <div class="wire-column" id="wire-left"></div>
+            <div class="wire-links" id="wire-links">No connections yet.</div>
+            <div class="wire-column" id="wire-right"></div>
+          </div>
+          <div id="wire-message"></div>
+        </div>
+      </div>
+      <div id="memory-overlay" class="puzzle-overlay">
+        <div class="puzzle-panel">
+          <h4>Memory Echo Game</h4>
+          <div>Watch the colors, then repeat the sequence.</div>
+          <div id="memory-score">Score: 0 / 10</div>
+          <div class="memory-grid" id="memory-grid"></div>
+          <div id="memory-message"></div>
         </div>
       </div>
     </div>
@@ -392,6 +544,19 @@
       const keypadOverlay = document.getElementById("keypad-overlay");
       const keypadGrid = document.getElementById("keypad-grid");
       const keypadDisplay = document.getElementById("keypad-display");
+      const lockOverlay = document.getElementById("lock-overlay");
+      const lockLayersEl = document.getElementById("lock-layers");
+      const lockControls = document.getElementById("lock-controls");
+      const lockMessage = document.getElementById("lock-message");
+      const wiresOverlay = document.getElementById("wires-overlay");
+      const wireLeft = document.getElementById("wire-left");
+      const wireRight = document.getElementById("wire-right");
+      const wireLinks = document.getElementById("wire-links");
+      const wireMessage = document.getElementById("wire-message");
+      const memoryOverlay = document.getElementById("memory-overlay");
+      const memoryGrid = document.getElementById("memory-grid");
+      const memoryScore = document.getElementById("memory-score");
+      const memoryMessage = document.getElementById("memory-message");
 
       const state = {
         canWalk: false,
@@ -465,6 +630,18 @@
       let nurseApproachTimer;
       let nurseArrived = false;
       let introDialogueStarted = false;
+      const lockTargets = [2, 2, 2];
+      let lockLayers = [0, 4, 1];
+      let lockSelectedLayer = 0;
+      const wireColors = ["red", "blue", "green", "yellow"];
+      let wireSelected = null;
+      const wireConnections = new Set();
+      let wireLeftOrder = [];
+      let wireRightOrder = [];
+      const memoryColors = ["red", "blue", "green", "yellow"];
+      let memorySequence = [];
+      let memoryInputIndex = 0;
+      let memoryLocked = false;
 
       function updateMemoryList() {
         memoryList.innerHTML = "";
@@ -610,12 +787,27 @@
           startIntroDialogue(true);
           return;
         }
-        if (state.phase === "puzzle") {
+        if (state.phase === "keypad") {
           if (isNumberKey) {
             pressKeypadKey(key);
           } else {
             handleKeypadInput(key);
           }
+          return;
+        }
+        if (state.phase === "lock") {
+          handleLockKeyInput(key);
+          return;
+        }
+        if (state.phase === "wires") {
+          handleWireKeyInput(key);
+          return;
+        }
+        if (state.phase === "memory") {
+          handleMemoryKeyInput(key);
+          return;
+        }
+        if (state.phase !== "free") {
           return;
         }
         const step = 16;
@@ -705,7 +897,8 @@
         if (key === "enter") {
           if (keypadInput === targetCode) {
             keypadOverlay.classList.remove("visible");
-            unlockWalking();
+            addMemory("Remembering puzzles");
+            startLockPuzzle();
           } else {
             keypadInput = "";
             updateKeypadDisplay("Try again");
@@ -730,13 +923,307 @@
       }
 
       function startKeypadPuzzle() {
-        state.phase = "puzzle";
+        state.phase = "keypad";
         keypadOverlay.classList.add("visible");
         keypadInput = "";
         keypadSelection = 0;
         updateKeypadDisplay();
         updateKeypadSelection();
         setHint("Solve the keypad puzzle using only the arrow keys.");
+      }
+
+      function buildLockControls() {
+        lockControls.innerHTML = "";
+        lockLayers.forEach((_, index) => {
+          const buttonLeft = document.createElement("button");
+          buttonLeft.className = "lock-button";
+          buttonLeft.textContent = `Layer ${index + 1} ◀`;
+          buttonLeft.addEventListener("click", () => rotateLockLayer(index, -1));
+          const buttonRight = document.createElement("button");
+          buttonRight.className = "lock-button";
+          buttonRight.textContent = `Layer ${index + 1} ▶`;
+          buttonRight.addEventListener("click", () => rotateLockLayer(index, 1));
+          lockControls.appendChild(buttonLeft);
+          lockControls.appendChild(buttonRight);
+        });
+      }
+
+      function renderLockLayers() {
+        lockLayersEl.innerHTML = "";
+        lockLayers.forEach((value, index) => {
+          const layer = document.createElement("div");
+          layer.className = "lock-layer";
+          if (index === lockSelectedLayer) {
+            layer.classList.add("selected");
+          }
+          for (let i = 0; i < 6; i += 1) {
+            const dot = document.createElement("span");
+            if (i === value) dot.classList.add("active");
+            if (i === lockTargets[index]) dot.classList.add("target");
+            dot.textContent = i + 1;
+            layer.appendChild(dot);
+          }
+          lockLayersEl.appendChild(layer);
+        });
+      }
+
+      function rotateLockLayer(layerIndex, direction) {
+        lockLayers[layerIndex] = (lockLayers[layerIndex] + direction + 6) % 6;
+        renderLockLayers();
+        checkLockSolved();
+      }
+
+      function checkLockSolved() {
+        const solved = lockLayers.every((value, index) => value === lockTargets[index]);
+        if (solved) {
+          lockMessage.textContent = "Lock opened! The wires are exposed.";
+          setTimeout(() => {
+            lockOverlay.classList.remove("visible");
+            startWiresPuzzle();
+          }, 800);
+        }
+      }
+
+      function startLockPuzzle() {
+        state.phase = "lock";
+        lockLayers = [0, 4, 1];
+        lockSelectedLayer = 0;
+        lockMessage.textContent = "";
+        lockOverlay.classList.add("visible");
+        buildLockControls();
+        renderLockLayers();
+        setHint("Twist the lock layers so the green markers align. (Keys 1-3 select a layer.)");
+      }
+
+      function handleLockKeyInput(key) {
+        if (key === "ArrowLeft") {
+          rotateLockLayer(lockSelectedLayer, -1);
+          return;
+        }
+        if (key === "ArrowRight") {
+          rotateLockLayer(lockSelectedLayer, 1);
+          return;
+        }
+        if (key === "ArrowUp") {
+          lockSelectedLayer = (lockSelectedLayer + 2) % 3;
+          renderLockLayers();
+          return;
+        }
+        if (key === "ArrowDown") {
+          lockSelectedLayer = (lockSelectedLayer + 1) % 3;
+          renderLockLayers();
+          return;
+        }
+        if (/^[1-3]$/.test(key)) {
+          lockSelectedLayer = Number.parseInt(key, 10) - 1;
+          renderLockLayers();
+        }
+      }
+
+      function buildWireBoard() {
+        wireLeft.innerHTML = "";
+        wireRight.innerHTML = "";
+        wireLinks.textContent = "No connections yet.";
+        wireMessage.textContent = "";
+        wireSelected = null;
+        wireConnections.clear();
+        wireLeftOrder = [...wireColors];
+        wireRightOrder = [...wireColors].sort(() => Math.random() - 0.5);
+        wireLeftOrder.forEach((color, index) => {
+          const leftBtn = document.createElement("button");
+          leftBtn.className = "wire-terminal";
+          leftBtn.style.background = color;
+          leftBtn.dataset.color = color;
+          leftBtn.dataset.side = "left";
+          leftBtn.dataset.index = index;
+          leftBtn.textContent = `${index + 1}. ${color.toUpperCase()}`;
+          leftBtn.addEventListener("click", () => selectWire(color, "left", leftBtn));
+          wireLeft.appendChild(leftBtn);
+        });
+        wireRightOrder.forEach((color, index) => {
+          const rightBtn = document.createElement("button");
+          rightBtn.className = "wire-terminal";
+          rightBtn.style.background = color;
+          rightBtn.dataset.color = color;
+          rightBtn.dataset.side = "right";
+          rightBtn.dataset.index = index;
+          rightBtn.textContent = `${index + 1}. ${color.toUpperCase()}`;
+          rightBtn.addEventListener("click", () => selectWire(color, "right", rightBtn));
+          wireRight.appendChild(rightBtn);
+        });
+      }
+
+      function updateWireLinks() {
+        if (wireConnections.size === 0) {
+          wireLinks.textContent = "No connections yet.";
+          return;
+        }
+        wireLinks.innerHTML = "";
+        wireConnections.forEach((color) => {
+          const line = document.createElement("div");
+          line.textContent = `${color.toUpperCase()} linked`;
+          wireLinks.appendChild(line);
+        });
+      }
+
+      function selectWire(color, side, button) {
+        if (wireConnections.has(color)) {
+          return;
+        }
+        if (side === "left") {
+          wireSelected = color;
+          wireLeft.querySelectorAll(".wire-terminal").forEach((node) => node.classList.remove("selected"));
+          button.classList.add("selected");
+          wireMessage.textContent = "Pick the matching color on the right.";
+          return;
+        }
+        if (!wireSelected) {
+          wireMessage.textContent = "Pick a wire on the left first.";
+          return;
+        }
+        if (wireSelected === color) {
+          wireConnections.add(color);
+          wireMessage.textContent = `${color.toUpperCase()} connected!`;
+          markWireConnected(color);
+          updateWireLinks();
+          wireSelected = null;
+          if (wireConnections.size === wireColors.length) {
+            setTimeout(() => {
+              wireMessage.textContent = "All wires linked. The memory console hums.";
+              wiresOverlay.classList.remove("visible");
+              startMemoryPuzzle();
+            }, 700);
+          }
+        } else {
+          wireMessage.textContent = "Wrong match. Try again.";
+          wireSelected = null;
+          wireLeft.querySelectorAll(".wire-terminal").forEach((node) => node.classList.remove("selected"));
+        }
+      }
+
+      function markWireConnected(color) {
+        document.querySelectorAll(`.wire-terminal[data-color="${color}"]`).forEach((node) => {
+          node.classList.add("connected");
+          node.classList.remove("selected");
+        });
+      }
+
+      function startWiresPuzzle() {
+        state.phase = "wires";
+        wiresOverlay.classList.add("visible");
+        buildWireBoard();
+        setHint("Connect matching color wires to restore power. (Keys 1-4 pick left then right.)");
+      }
+
+      function handleWireKeyInput(key) {
+        if (!/^[1-4]$/.test(key)) {
+          if (key === "Escape") {
+            wireSelected = null;
+            wireLeft.querySelectorAll(".wire-terminal").forEach((node) => node.classList.remove("selected"));
+            wireMessage.textContent = "Selection cleared.";
+          }
+          return;
+        }
+        const index = Number.parseInt(key, 10) - 1;
+        if (!wireSelected) {
+          const button = wireLeft.querySelector(`.wire-terminal[data-index="${index}"]`);
+          if (button) {
+            selectWire(wireLeftOrder[index], "left", button);
+          }
+          return;
+        }
+        const button = wireRight.querySelector(`.wire-terminal[data-index="${index}"]`);
+        if (button) {
+          selectWire(wireRightOrder[index], "right", button);
+        }
+      }
+
+      function buildMemoryButtons() {
+        memoryGrid.innerHTML = "";
+        memoryColors.forEach((color) => {
+          const button = document.createElement("button");
+          button.className = `memory-button ${color}`;
+          button.dataset.color = color;
+          button.addEventListener("click", () => handleMemoryInput(color));
+          memoryGrid.appendChild(button);
+        });
+      }
+
+      function updateMemoryScore() {
+        const score = Math.max(0, memorySequence.length - 1);
+        memoryScore.textContent = `Score: ${score} / 10`;
+      }
+
+      function flashMemoryButton(color) {
+        const button = memoryGrid.querySelector(`[data-color="${color}"]`);
+        if (!button) return;
+        button.classList.add("active");
+        setTimeout(() => button.classList.remove("active"), 350);
+      }
+
+      async function playMemorySequence() {
+        memoryLocked = true;
+        memoryMessage.textContent = "Watch carefully...";
+        for (const color of memorySequence) {
+          flashMemoryButton(color);
+          await new Promise((resolve) => setTimeout(resolve, 550));
+        }
+        memoryLocked = false;
+        memoryInputIndex = 0;
+        memoryMessage.textContent = "Your turn!";
+      }
+
+      function nextMemoryRound() {
+        const nextColor = memoryColors[Math.floor(Math.random() * memoryColors.length)];
+        memorySequence.push(nextColor);
+        updateMemoryScore();
+        playMemorySequence();
+      }
+
+      function handleMemoryInput(color) {
+        if (memoryLocked) {
+          return;
+        }
+        flashMemoryButton(color);
+        if (color !== memorySequence[memoryInputIndex]) {
+          memoryMessage.textContent = "Oops! Try the sequence again.";
+          memoryInputIndex = 0;
+          playMemorySequence();
+          return;
+        }
+        memoryInputIndex += 1;
+        if (memoryInputIndex === memorySequence.length) {
+          if (Math.max(0, memorySequence.length - 1) >= 10) {
+            memoryMessage.textContent = "Memory sync complete!";
+            setTimeout(() => {
+              memoryOverlay.classList.remove("visible");
+              unlockWalking();
+            }, 800);
+            return;
+          }
+          memoryMessage.textContent = "Nice! Get ready for the next sequence.";
+          setTimeout(() => nextMemoryRound(), 900);
+        }
+      }
+
+      function startMemoryPuzzle() {
+        state.phase = "memory";
+        memoryOverlay.classList.add("visible");
+        memorySequence = [];
+        memoryInputIndex = 0;
+        memoryMessage.textContent = "";
+        buildMemoryButtons();
+        updateMemoryScore();
+        setHint("Repeat the color sequence. Reach a score of 10. (Keys 1-4 press colors.)");
+        setTimeout(() => nextMemoryRound(), 600);
+      }
+
+      function handleMemoryKeyInput(key) {
+        if (!/^[1-4]$/.test(key)) {
+          return;
+        }
+        const index = Number.parseInt(key, 10) - 1;
+        handleMemoryInput(memoryColors[index]);
       }
 
       function init() {
