@@ -151,6 +151,7 @@
 
       .npc {
         filter: drop-shadow(0 2px 2px rgba(0, 0, 0, 0.2));
+        cursor: pointer;
       }
 
       .npc .label {
@@ -901,6 +902,9 @@
         addMemory("Remembering walking");
         player.classList.remove("bedridden");
         setHint("You remembered how to walk! Use the arrow keys to move.");
+        if (state.scene === "cafe" && baristaIntroComplete && !coffeeOverlayOpen) {
+          promptCustomerOrder();
+        }
       }
 
       function addMemory(memory) {
@@ -910,15 +914,16 @@
         }
       }
 
-      function isColliding(a, b) {
+      function isNear(a, b, padding = 24) {
         const aRect = a.getBoundingClientRect();
         const bRect = b.getBoundingClientRect();
-        return !(
-          aRect.right < bRect.left ||
-          aRect.left > bRect.right ||
-          aRect.bottom < bRect.top ||
-          aRect.top > bRect.bottom
-        );
+        const aCenter = { x: (aRect.left + aRect.right) / 2, y: (aRect.top + aRect.bottom) / 2 };
+        const bCenter = { x: (bRect.left + bRect.right) / 2, y: (bRect.top + bRect.bottom) / 2 };
+        const dx = aCenter.x - bCenter.x;
+        const dy = aCenter.y - bCenter.y;
+        const distance = Math.sqrt(dx * dx + dy * dy);
+        const reach = Math.max(aRect.width, aRect.height) / 2 + Math.max(bRect.width, bRect.height) / 2 + padding;
+        return distance <= reach;
       }
 
       function handleInteraction() {
@@ -926,10 +931,215 @@
           showNextDialogue();
           return;
         }
-        if (state.scene === "cafe" && isColliding(player, kid)) {
-          openDialogue("kid");
+        if (state.scene === "cafe" && isNear(player, kid, 36)) {
+          if (!baristaIntroComplete && !baristaIntroStarted) {
+            baristaIntroStarted = true;
+            openDialogue("baristaIntro", () => {
+              baristaIntroComplete = true;
+              startCoffeeService();
+            });
+            return;
+          }
+          if (baristaIntroComplete && !coffeeOverlayOpen) {
+            promptCustomerOrder();
+          }
+        } else {
+          hideCustomerBubble();
         }
       }
+
+      function promptCustomerOrder() {
+        if (!currentCoffeeOrder) {
+          prepareNextCustomer();
+        }
+        updateCustomerPanel();
+        showCustomerBubble(`${currentCoffeeOrder.customer}: tap to take order`);
+      }
+
+      function showCustomerBubble(text) {
+        if (!currentCoffeeOrder) return;
+        customerBubble.hidden = false;
+        customerBubble.classList.add("visible");
+        customerBubble.textContent = text || "Take order";
+      }
+
+      function hideCustomerBubble() {
+        customerBubble.classList.remove("visible");
+        customerBubble.hidden = true;
+      }
+
+      function updateCustomerPanel() {
+        if (!currentCoffeeOrder) {
+          customerPanel.classList.remove("visible");
+          customerPanel.hidden = true;
+          return;
+        }
+        customerPanel.hidden = false;
+        customerPanel.classList.add("visible");
+        customerName.textContent = currentCoffeeOrder.customer;
+        customerOrderText.textContent = currentCoffeeOrder.request;
+        customerProgress.textContent = `Orders served: ${state.ordersServed} / 10`;
+      }
+
+      function prepareNextCustomer() {
+        currentCoffeeOrder = coffeeOrders[Math.floor(Math.random() * coffeeOrders.length)];
+        updateCustomerPanel();
+        hideCustomerBubble();
+      }
+
+      function startCoffeeService() {
+        prepareNextCustomer();
+        setHint("Click the barista speech bubble to take each order and assemble the drink.");
+        if (state.scene === "cafe" && isNear(player, kid, 36)) {
+          showCustomerBubble(`${currentCoffeeOrder.customer}: tap to take order`);
+        }
+      }
+
+      function buildCoffeeOverlay() {
+        coffeeSlots = currentCoffeeOrder ? [...currentCoffeeOrder.steps] : [];
+        coffeeStock = {};
+        coffeeSlots.forEach((ingredient) => {
+          coffeeStock[ingredient] = (coffeeStock[ingredient] || 0) + 1;
+        });
+        coffeeSlotsEl.innerHTML = "";
+        coffeeSlots.forEach((ingredient, index) => {
+          const slot = document.createElement("div");
+          slot.className = "coffee-slot";
+          slot.dataset.index = index;
+          slot.textContent = `Step ${index + 1}`;
+          slot.addEventListener("dragover", (event) => event.preventDefault());
+          slot.addEventListener("drop", (event) => handleSlotDrop(event, ingredient, index));
+          coffeeSlotsEl.appendChild(slot);
+        });
+        buildIngredientTray();
+        coffeeStatus.textContent = "Drag each ingredient onto the correct step in order.";
+        coffeeOrderTitle.textContent = `${currentCoffeeOrder.customer}'s order: ${currentCoffeeOrder.request}`;
+      }
+
+      function buildIngredientTray() {
+        ingredientTray.innerHTML = "";
+        const needed = new Set(coffeeSlots);
+        extraIngredients.forEach((item) => needed.add(item));
+        needed.forEach((ingredient) => {
+          const button = document.createElement("div");
+          button.className = "ingredient";
+          button.draggable = true;
+          button.dataset.ingredient = ingredient;
+          button.textContent = `${ingredient}${coffeeStock[ingredient] ? ` x${coffeeStock[ingredient]}` : ""}`;
+          button.addEventListener("dragstart", (event) => {
+            if (button.classList.contains("exhausted")) {
+              event.preventDefault();
+              return;
+            }
+            event.dataTransfer.setData("text/plain", ingredient);
+          });
+          ingredientTray.appendChild(button);
+        });
+      }
+
+      function handleSlotDrop(event, expectedIngredient, slotIndex) {
+        event.preventDefault();
+        const ingredient = event.dataTransfer.getData("text/plain");
+        const slot = event.currentTarget;
+        if (slot.classList.contains("filled")) {
+          coffeeStatus.textContent = "That step is already filled.";
+          return;
+        }
+        if (!coffeeStock[ingredient]) {
+          coffeeStatus.textContent = `${ingredient} is not needed right now.`;
+          return;
+        }
+        if (ingredient !== expectedIngredient) {
+          coffeeStatus.textContent = `Wrong order. Step ${slotIndex + 1} needs ${expectedIngredient}.`;
+          return;
+        }
+        coffeeStock[ingredient] -= 1;
+        slot.classList.add("filled");
+        slot.textContent = expectedIngredient;
+        updateIngredientCounts();
+        if ([...coffeeSlotsEl.children].every((node) => node.classList.contains("filled"))) {
+          completeCoffeeOrder();
+        } else {
+          coffeeStatus.textContent = "Nice drop! Keep following the order.";
+        }
+      }
+
+      function updateIngredientCounts() {
+        ingredientTray.querySelectorAll(".ingredient").forEach((node) => {
+          const ingredient = node.dataset.ingredient;
+          if (coffeeStock[ingredient] !== undefined) {
+            node.textContent = `${ingredient}${coffeeStock[ingredient] > 0 ? ` x${coffeeStock[ingredient]}` : ""}`;
+            if (coffeeStock[ingredient] <= 0) {
+              node.classList.add("exhausted");
+            }
+          }
+        });
+      }
+
+      function resetCoffeeBoard() {
+        if (!currentCoffeeOrder) return;
+        buildCoffeeOverlay();
+        coffeeStatus.textContent = "Drink reset. Follow the steps again.";
+      }
+
+      function completeCoffeeOrder() {
+        state.ordersServed += 1;
+        coffeeStatus.textContent = "Order served! The customer smiles.";
+        updateCustomerPanel();
+        setTimeout(() => {
+          coffeeOverlay.classList.remove("visible");
+          coffeeOverlayOpen = false;
+          hideCustomerBubble();
+          if (state.ordersServed >= 10 && !state.coffeeMemoryGiven) {
+            state.coffeeMemoryGiven = true;
+            openDialogue("baristaMemory", () => {
+              addMemory("Remembering eating and drinking");
+              setHint("Memory of meals restored. You can keep serving or explore.");
+              sceneMessage.textContent = "Cafe memory unlocked!";
+              sceneMessage.classList.add("visible");
+            });
+            return;
+          }
+          prepareNextCustomer();
+          if (state.scene === "cafe" && isNear(player, kid, 36)) {
+            showCustomerBubble(`${currentCoffeeOrder.customer}: tap to take order`);
+          }
+        }, 600);
+      }
+
+      function openCoffeeOrder() {
+        if (!currentCoffeeOrder) {
+          prepareNextCustomer();
+        }
+        coffeeOverlay.classList.add("visible");
+        coffeeOverlayOpen = true;
+        buildCoffeeOverlay();
+        hideCustomerBubble();
+      }
+
+      customerBubble?.addEventListener("click", () => {
+        if (!customerBubble.classList.contains("visible") || !currentCoffeeOrder) return;
+        openCoffeeOrder();
+      });
+
+      kid.addEventListener("click", () => {
+        if (state.scene !== "cafe") return;
+        handleInteraction();
+        if (baristaIntroComplete && !coffeeOverlayOpen) {
+          promptCustomerOrder();
+        }
+      });
+
+      resetCoffeeBtn.addEventListener("click", resetCoffeeBoard);
+      closeCoffeeBtn.addEventListener("click", () => {
+        coffeeOverlay.classList.remove("visible");
+        coffeeOverlayOpen = false;
+        if (state.scene === "cafe" && isNear(player, kid, 36)) {
+          showCustomerBubble("Click to retake the order");
+        } else {
+          hideCustomerBubble();
+        }
+      });
 
       function movePlayer(dx, dy) {
         if (!state.canWalk) {
@@ -959,6 +1169,9 @@
           state.position.x = 80;
           setPlayerPosition();
           setHint("Welcome to the cafe! Find the barista and stand close to talk.");
+          if (baristaIntroComplete && !coffeeOverlayOpen) {
+            promptCustomerOrder();
+          }
         }
       }
 
