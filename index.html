@@ -421,6 +421,120 @@
         display: block;
       }
 
+      .order-bubble {
+        position: absolute;
+        top: -42px;
+        left: 50%;
+        transform: translateX(-50%);
+        background: #fff7e6;
+        border: 3px solid var(--ink);
+        border-radius: 14px;
+        padding: 6px 8px;
+        font-size: 12px;
+        cursor: pointer;
+        display: none;
+        box-shadow: 0 6px 0 rgba(0, 0, 0, 0.08);
+      }
+
+      .order-bubble.visible {
+        display: block;
+        animation: pop 0.25s ease;
+      }
+
+      @keyframes pop {
+        0% {
+          transform: translateX(-50%) scale(0.92);
+        }
+        100% {
+          transform: translateX(-50%) scale(1);
+        }
+      }
+
+      .customer-panel {
+        position: absolute;
+        top: 18px;
+        left: 300px;
+        width: 260px;
+        background: var(--panel);
+        border: 3px solid var(--ink);
+        border-radius: 14px;
+        padding: 10px 12px;
+        font-size: 13px;
+        display: none;
+      }
+
+      .customer-panel.visible {
+        display: block;
+      }
+
+      .customer-panel h4 {
+        margin: 0 0 6px;
+        font-size: 15px;
+      }
+
+      .customer-panel .order-line {
+        margin: 2px 0;
+      }
+
+      .coffee-panel {
+        width: min(520px, 96vw);
+      }
+
+      .coffee-order-steps {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
+        gap: 8px;
+        margin: 10px 0;
+      }
+
+      .coffee-slot {
+        border: 2px dashed var(--ink);
+        border-radius: 10px;
+        padding: 10px;
+        min-height: 52px;
+        background: #fffdf6;
+        font-size: 13px;
+      }
+
+      .coffee-slot.filled {
+        border-style: solid;
+        background: #e6ffe8;
+        font-weight: 700;
+      }
+
+      .ingredient-tray {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
+        gap: 10px;
+        margin-top: 12px;
+      }
+
+      .ingredient {
+        border: 2px solid var(--ink);
+        border-radius: 10px;
+        padding: 8px;
+        background: #f7f2ff;
+        cursor: grab;
+        font-weight: 700;
+      }
+
+      .ingredient.exhausted {
+        opacity: 0.4;
+        cursor: not-allowed;
+      }
+
+      .coffee-footer {
+        margin-top: 12px;
+        display: flex;
+        justify-content: space-between;
+        gap: 8px;
+        flex-wrap: wrap;
+      }
+
+      .coffee-footer button {
+        flex: 1;
+      }
+
       @media (max-width: 640px) {
         #hint-panel,
         #memory-panel {
@@ -458,6 +572,9 @@
         </div>
         <div id="kid" class="npc" hidden>
           <div class="label">Barista</div>
+          <button id="customer-bubble" class="order-bubble" type="button" hidden>
+            Take order
+          </button>
           <div class="stick-head"></div>
           <div class="stick-body"></div>
           <div class="stick-arm left"></div>
@@ -474,6 +591,12 @@
       <div id="memory-panel">
         <strong>Recovered Memories</strong>
         <ul id="memory-list"></ul>
+      </div>
+      <div id="customer-panel" class="customer-panel" hidden>
+        <h4>Customer Waiting</h4>
+        <div class="order-line" id="customer-name"></div>
+        <div class="order-line" id="customer-order"></div>
+        <div class="order-line" id="customer-progress"></div>
       </div>
       <div id="dialogue">
         <div class="speaker" id="dialogue-speaker"></div>
@@ -521,6 +644,20 @@
           <div id="memory-message"></div>
         </div>
       </div>
+      <div id="coffee-overlay" class="puzzle-overlay">
+        <div class="puzzle-panel coffee-panel">
+          <h4>Cafe Order Builder</h4>
+          <div id="coffee-order-title"></div>
+          <div class="coffee-order-steps" id="coffee-order-steps"></div>
+          <div><strong>Drag ingredients in order:</strong></div>
+          <div class="ingredient-tray" id="ingredient-tray"></div>
+          <div id="coffee-status"></div>
+          <div class="coffee-footer">
+            <button id="reset-coffee" class="lock-button" type="button">Reset drink</button>
+            <button id="close-coffee" class="lock-button" type="button">Close</button>
+          </div>
+        </div>
+      </div>
     </div>
 
     <script>
@@ -550,6 +687,18 @@
       const memoryGrid = document.getElementById("memory-grid");
       const memoryScore = document.getElementById("memory-score");
       const memoryMessage = document.getElementById("memory-message");
+      const customerBubble = document.getElementById("customer-bubble");
+      const customerPanel = document.getElementById("customer-panel");
+      const customerName = document.getElementById("customer-name");
+      const customerOrderText = document.getElementById("customer-order");
+      const customerProgress = document.getElementById("customer-progress");
+      const coffeeOverlay = document.getElementById("coffee-overlay");
+      const coffeeOrderTitle = document.getElementById("coffee-order-title");
+      const coffeeSlotsEl = document.getElementById("coffee-order-steps");
+      const ingredientTray = document.getElementById("ingredient-tray");
+      const coffeeStatus = document.getElementById("coffee-status");
+      const resetCoffeeBtn = document.getElementById("reset-coffee");
+      const closeCoffeeBtn = document.getElementById("close-coffee");
 
       const state = {
         canWalk: false,
@@ -558,6 +707,8 @@
         phase: "intro",
         memories: [],
         position: { x: 120, y: 320 },
+        ordersServed: 0,
+        coffeeMemoryGiven: false,
       };
 
       const dialogueScripts = {
@@ -583,27 +734,42 @@
             text: "Each number you press becomes a different number. Figure out the right buttons.",
           },
         ],
-        kid: [
+        baristaIntro: [
           {
             speaker: "Barista",
-            text: "Welcome to my cafe! Want to help me catch the espresso order?",
+            text: "Welcome to my cafe! Could you jump behind the bar and help with coffees?",
           },
           {
             speaker: "Stickman",
-            text: "I can stand by the menu board and catch the coffee clouds.",
+            text: "[jabbing at boba] Why these bubbles no pop. Is it because tomato salad missing croutons?",
           },
           {
             speaker: "Barista",
-            text: "Perfect pour! Here, have a memory of warm pastries.",
+            text: "Click my speech bubble to take each customer's order. Match every ingredient, in order and amount.",
           },
           {
             speaker: "Stickman",
-            text: "PASTRIES! I remember crumbling joy. Delicious memory restored.",
+            text: "Sad people leaving with unpoppable bubbles will put croutons back in tomato salad",
+          },
+        ],
+        baristaMemory: [
+          {
+            speaker: "Barista",
+            text: "Ten satisfied customers! You nailed every pour and swirl.",
+          },
+          {
+            speaker: "Barista",
+            text: "Take this memory of eating and drinking. You earned it.",
+          },
+          {
+            speaker: "Stickman",
+            text: "Mugs and meals! My brain buzzes with flavor again.",
           },
         ],
       };
 
       let dialogueQueue = [];
+      let dialogueCompleteCb = null;
       const keypadLayout = ["1", "2", "3", "4", "5", "6", "7", "8", "9", "clear", "0", "enter"];
       const scrambledMap = {
         0: "5",
@@ -632,6 +798,40 @@
       let memorySequence = [];
       let memoryInputIndex = 0;
       let memoryLocked = false;
+      const coffeeOrders = [
+        {
+          customer: "Riley the Runner",
+          request: "Latte: 2 espresso shots, 2 steamed milk, finish with foam.",
+          steps: ["Espresso Shot", "Espresso Shot", "Steamed Milk", "Steamed Milk", "Milk Foam"],
+        },
+        {
+          customer: "Avery the Artist",
+          request: "Iced mocha: espresso, chocolate syrup, cold milk, ice cubes.",
+          steps: ["Espresso Shot", "Chocolate Syrup", "Cold Milk", "Ice Cubes"],
+        },
+        {
+          customer: "Jules the Journalist",
+          request: "Flat white: double espresso, silky milk.",
+          steps: ["Espresso Shot", "Espresso Shot", "Steamed Milk"],
+        },
+        {
+          customer: "Morgan the Musician",
+          request: "Caramel cappuccino: espresso, steamed milk, foam, caramel drizzle.",
+          steps: ["Espresso Shot", "Steamed Milk", "Milk Foam", "Caramel Drizzle"],
+        },
+        {
+          customer: "Casey the Coder",
+          request: "Sweet cinnamon latte: espresso, steamed milk, sugar, cinnamon.",
+          steps: ["Espresso Shot", "Steamed Milk", "Sugar", "Cinnamon"],
+        },
+      ];
+      const extraIngredients = ["Whipped Cream", "Vanilla Syrup", "Honey"];
+      let baristaIntroStarted = false;
+      let baristaIntroComplete = false;
+      let currentCoffeeOrder = null;
+      let coffeeSlots = [];
+      let coffeeStock = {};
+      let coffeeOverlayOpen = false;
 
       function updateMemoryList() {
         memoryList.innerHTML = "";
@@ -665,8 +865,9 @@
         kid.style.top = "260px";
       }
 
-      function openDialogue(scriptKey) {
+      function openDialogue(scriptKey, onComplete) {
         dialogueQueue = [...dialogueScripts[scriptKey]];
+        dialogueCompleteCb = onComplete || null;
         state.inDialogue = true;
         dialogueBox.classList.add("visible");
         showNextDialogue();
@@ -685,12 +886,12 @@
       function closeDialogue() {
         state.inDialogue = false;
         dialogueBox.classList.remove("visible");
-        if (state.scene === "hospital" && state.phase === "intro") {
+        const callback = dialogueCompleteCb;
+        dialogueCompleteCb = null;
+        if (callback) {
+          callback();
+        } else if (state.scene === "hospital" && state.phase === "intro") {
           startKeypadPuzzle();
-        } else if (state.scene === "cafe" && !state.memories.includes("Remembering pastries")) {
-          addMemory("Remembering pastries");
-          setHint("You recovered a pastry memory! Wander around with arrow keys.");
-          sceneMessage.classList.add("visible");
         }
       }
 
@@ -865,7 +1066,7 @@
         if (forceSnap || !nurseArrived) {
           nurse.style.left = `${state.position.x + 60}px`;
         }
-        openDialogue("nurse");
+        openDialogue("nurse", () => startKeypadPuzzle());
       }
 
       function buildKeypad() {
